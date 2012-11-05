@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<dForm Name="dForm" Caption="Cloud Files Folder Uploader" SaveRestorePosition="False" Top="282" Height="533" Width="991" designerClass="DesForm" Left="464">
+	<code>
+		<_setFolderData><![CDATA[
+def _setFolderData(self, val):
+	self._folderData = val
+	print "SETTING"
+	try:
+		self.grdUpload.DataSet = self._folderData
+		print "GRID SET"
+	except AttributeError:
+		# grid isn't defined yet
+		print "GRID FAILED"
+		pass
+]]>
+		</_setFolderData>
+		<addFolder><![CDATA[
+def addFolder(self):
+	folder = dabo.ui.getFolder("Select Folder to Upload to Cloud Files:")
+	# Select the container
+	dlg = dabo.ui.createForm("ui/container_selector.cdxml")
+	dlg.setContainers(self.containers)
+	dlg.show()
+	if not dlg.Accepted:
+		# User canceled
+		dlg.release()
+		return
+	cont_type, nm = dlg.returnval.split(":")
+	if nm not in self.containers:
+		self.containers.append(nm)
+		self.containers.sort()
+	create = (cont_type == "new")
+	self.add_to_dataset(folder, nm, create)
+]]>
+		</addFolder>
+		<update_progress><![CDATA[
+def update_progress(self):
+	changed = False
+	for rec in self.FolderData:
+		reckey = rec["key"]
+		if not reckey:
+			continue
+		changed = True
+		print "Checking progress for", reckey,
+		uploaded = pyrax.cloudfiles.get_uploaded(reckey)
+		print "uploaded:", uploaded
+	
+		rec["progress"] = "%4.1f%%" % ((100.0 * uploaded) / rec["total_bytes"])
+		
+		if uploaded == rec["total_bytes"]:
+				rec["key"] = None
+				
+	if changed:
+		self.FolderData = self.FolderData
+]]>
+		</update_progress>
+		<afterInit><![CDATA[
+def afterInit(self):
+	self.FolderData = dabo.db.dDataSet()
+]]>
+		</afterInit>
+		<afterInitAll><![CDATA[
+def afterInitAll(self):
+	self.authenticate()
+	if pyrax.identity.authenticated:
+		cap = "Authenticated"
+		self.containers = pyrax.cloudfiles.list_containers()
+		self.containers.sort()
+	else:
+		cap = "Not Authenticated"
+	self.Caption = "%s - %s" % (self.Caption, cap)
+	dabo.ui.callEvery(1000, self.update_progress)
+]]>
+		</afterInitAll>
+		<_getFolderData><![CDATA[
+def _getFolderData(self):
+	try:
+		return self._folderData
+	except AttributeError:
+		return None
+]]>
+		</_getFolderData>
+		<authenticate><![CDATA[
+def authenticate(self):
+	self.StatusText = "Authenticating..."
+	cred_file = os.path.expanduser("~/.rackspace_cloud_credentials")
+	if os.path.exists(cred_file):
+		pyrax.set_credential_file(cred_file)
+	
+	else:
+		# Ask for creds via a dialog
+		class AuthDialog(dabo.ui.dOkCancelDialog):
+			def addControls(self):
+				grd = dabo.ui.dGridSizer(MaxCols=2)
+				lbl = dabo.ui.dLabel(self, Caption="Username:")
+				self.txtUser = dabo.ui.dTextBox(self)
+				grd.append(lbl, halign="right")
+				grd.append(self.txtUser)
+				lbl = dabo.ui.dLabel(self, Caption="API Key:")
+				self.txtAPI = dabo.ui.dTextBox(self, PasswordEntry=True, TextLength=32)
+				grd.append(lbl, halign="right")
+				grd.append(self.txtAPI)
+				self.Sizer.append1x(grd)
+
+		dlg = AuthDialog(self)
+		dlg.show()
+		if dlg.Accepted:
+			user = dlg.txtUser.Value
+			api = dlg.txtAPI.Value
+			pyrax.set_credentials(user, api)
+		dlg.release()
+	self.StatusText = ""
+]]>
+		</authenticate>
+		<add_to_dataset><![CDATA[
+def add_to_dataset(self, folder, container, create=False):
+	recs = list(self.FolderData)
+	newrec = {"local": folder, "container": container, "progress": "0%",
+			"create": create, "key": None, "total_bytes": 0}
+	recs.append(newrec)
+	self.FolderData = dabo.db.dDataSet(recs)
+]]>
+		</add_to_dataset>
+		<startUpload><![CDATA[
+def startUpload(self):
+	cf = pyrax.cloudfiles
+
+	dabo.trace()
+	
+	for rec in self.FolderData:
+		if rec["key"] is not None:
+			continue
+		cont = cf.create_container(rec["container"])
+		rec["key"], rec["total_bytes"] = cf.upload_folder(rec["local"], cont.name)
+]]>
+		</startUpload>
+		<importStatements><![CDATA[
+import os
+import pyrax
+]]>
+		</importStatements>
+	</code>
+
+	<properties>
+		<FolderData>
+			<comment>Holds the data for the main grid</comment>
+			<defaultValue>[]</defaultValue>
+			<deller>None</deller>
+			<getter>_getFolderData</getter>
+			<propName>FolderData</propName>
+			<defaultType></defaultType>
+			<setter>_setFolderData</setter>
+		</FolderData>
+	</properties>
+
+	<dSizer SlotCount="1" designerClass="LayoutSizer" Orientation="Vertical">
+		<dPanel sizerInfo="{'HAlign': 'Left', 'VAlign': 'Top'}" designerClass="controlMix">
+			<dSizer SlotCount="4" designerClass="LayoutSizer" Orientation="Vertical">
+				<dPanel sizerInfo="{'BorderSides': ['All'], 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0}" designerClass="LayoutPanel"></dPanel>
+				<dSizer SlotCount="3" sizerInfo="{'BorderSides': ['All'], 'Proportion': 5, 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0, 'Expand': True}" designerClass="LayoutSizer" Orientation="Horizontal">
+					<dPanel sizerInfo="{'BorderSides': ['All'], 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0}" designerClass="LayoutPanel"></dPanel>
+					<dGrid ColumnCount="4" RegID="grdUpload" SelectionMode="Row" designerClass="controlMix" sizerInfo="{'Proportion': 4}">
+						<code>
+							<onContextMenu><![CDATA[
+def onContextMenu(self, evt):
+	dabo.ui.stop("CONTEXT")
+]]>
+							</onContextMenu>
+							<onMouseRightClick><![CDATA[
+def onMouseRightClick(self, evt):
+	dabo.ui.stop("Grid", self.RowNumber)
+]]>
+							</onMouseRightClick>
+						</code>
+
+						<dColumn Caption="Local Folder" DataField="local" designerClass="controlMix" Order="0" Width="267"></dColumn>
+						<dColumn Caption="Container" DataField="container" designerClass="controlMix" Order="10" Width="130"></dColumn>
+						<dColumn Caption="Progress" DataField="progress" designerClass="controlMix" Order="20" Width="92"></dColumn>
+						<dColumn Caption="Upload Key" DataField="key" designerClass="controlMix" Order="30" Width="169"></dColumn>
+					</dGrid>
+					<dPanel sizerInfo="{'BorderSides': ['All'], 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0}" designerClass="LayoutPanel"></dPanel>
+				</dSizer>
+				<dSizer SlotCount="6" sizerInfo="{'BorderSides': ['All'], 'Proportion': 1, 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 12, 'Expand': True}" designerClass="LayoutSizer" Orientation="Horizontal">
+					<dPanel sizerInfo="{'BorderSides': ['All'], 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0}" designerClass="LayoutPanel"></dPanel>
+					<dButton Width="93" sizerInfo="{}" designerClass="controlMix" Caption="Add Folder">
+						<code>
+							<onHit><![CDATA[
+def onHit(self, evt):
+	self.Form.addFolder()
+]]>
+							</onHit>
+						</code>
+					</dButton>
+					<dPanel Spacing="16" sizerInfo="{'VAlign': 'Top', 'Border': 0, 'Expand': True}" designerClass="LayoutSpacerPanel"></dPanel>
+					<dButton Width="93" sizerInfo="{}" designerClass="controlMix" Name="dButton2" Caption="Start Upload">
+						<code>
+							<onHit><![CDATA[
+def onHit(self, evt):
+	self.Form.startUpload()
+]]>
+							</onHit>
+						</code>
+					</dButton>
+					<dPanel sizerInfo="{'BorderSides': ['All'], 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0}" designerClass="LayoutPanel"></dPanel>
+					<dButton Width="93" sizerInfo="{}" designerClass="controlMix" Name="dButton1" Caption="Quit">
+						<code>
+							<onHit><![CDATA[
+def onHit(self, evt):
+	self.Form.close()
+]]>
+							</onHit>
+						</code>
+					</dButton>
+				</dSizer>
+				<dPanel sizerInfo="{'BorderSides': ['All'], 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0}" designerClass="LayoutPanel"></dPanel>
+			</dSizer>
+		</dPanel>
+	</dSizer>
+</dForm>

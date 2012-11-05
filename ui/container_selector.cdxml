@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<dOkCancelDialog Name="dOkCancelDialog" Caption="Select the Container" Top="241" Height="312" Width="434" designerClass="DesForm" Left="573">
+	<code>
+		<runOK><![CDATA[
+def runOK(self):
+	self.returnval = {
+			0: "new:",
+			1: "new:%s" % self.txtNewContainer.Value,
+			2: "existing:%s" % self.ddContainer.Value
+			}[self.radSelect.Value]
+]]>
+		</runOK>
+		<setContainers><![CDATA[
+def setContainers(self, conts):
+	self.ddContainer.Choices = conts
+	curr = self.pgfContainer.SelectedPageNumber
+	self.pgfContainer.SelectedPageNumber = 2
+	self.layout()
+	self.pgfContainer.SelectedPageNumber = curr
+]]>
+		</setContainers>
+		<afterInitAll><![CDATA[
+def afterInitAll(self):
+	self.updateControls()
+]]>
+		</afterInitAll>
+		<updateControls><![CDATA[
+def updateControls(self):
+	val = self.radSelect.Value
+	self.pgfContainer.SelectedPageNumber = val
+]]>
+		</updateControls>
+	</code>
+
+	<dSizer SlotCount="2" designerClass="LayoutSizer" Orientation="Vertical">
+		<dLabel FontSize="16" sizerInfo="{'HAlign': 'Left'}" designerClass="controlMix" Caption="Upload this folder to:"></dLabel>
+		<dSizer SlotCount="2" sizerInfo="{'BorderSides': ['All'], 'Proportion': 1, 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0, 'Expand': True}" designerClass="LayoutSizer" Orientation="Vertical">
+			<dRadioList sizerInfo="{'Proportion': 2, 'HAlign': 'Right', 'VAlign': 'Bottom', 'Expand': True}" ValueMode="position" Orientation="Vertical" Value="0" Choices="[u&apos;A new container with the same name as the folder&apos;, u&apos;A new container with a different name&apos;, u&apos;An existing container&apos;]" Caption="" designerClass="controlMix" RegID="radSelect">
+				<code>
+					<onValueChanged><![CDATA[
+def onValueChanged(self, evt):
+	self.Form.updateControls()
+]]>
+					</onValueChanged>
+				</code>
+			</dRadioList>
+			<dPageFrameNoTabs RegID="pgfContainer" sizerInfo="{'Proportion': 2, 'VAlign': 'Middle', 'Border': 8}" designerClass="controlMix" PageCount="3">
+				<dPage Caption="" sizerInfo="{'HAlign': 'Left', 'VAlign': 'Top'}" designerClass="controlMix">
+					<dSizer SlotCount="1" designerClass="LayoutSizer" Orientation="Vertical">
+						<dPanel sizerInfo="{'BorderSides': ['All'], 'HAlign': 'Left', 'VAlign': 'Top', 'Border': 0}" designerClass="LayoutPanel"></dPanel>
+					</dSizer>
+				</dPage>
+				<dPage Caption="" sizerInfo="{'HAlign': 'Left', 'VAlign': 'Top'}" designerClass="controlMix" Name="dPage1">
+					<dSizer SlotCount="3" designerClass="LayoutSizer" Orientation="Vertical">
+						<dPanel Spacing="20" sizerInfo="{'HAlign': 'Left', 'Border': 0, 'Expand': True}" designerClass="LayoutSpacerPanel"></dPanel>
+						<dLabel RegID="lblNewContainer" Enabled="False" sizerInfo="{'HAlign': 'Left'}" designerClass="controlMix" Caption="New Container Name:"></dLabel>
+						<dTextBox RegID="txtNewContainer" sizerInfo="{}" designerClass="controlMix"></dTextBox>
+					</dSizer>
+				</dPage>
+				<dPage Caption="" sizerInfo="{'HAlign': 'Left', 'VAlign': 'Top'}" designerClass="controlMix" Name="dPage2">
+					<dSizer SlotCount="2" designerClass="LayoutSizer" Orientation="Vertical">
+						<dLabel RegID="lblSelectContainer" Enabled="False" sizerInfo="{'HAlign': 'Left'}" designerClass="controlMix" Caption="Select Container:"></dLabel>
+						<dDropdownList RegID="ddContainer" sizerInfo="{'Proportion': 1}" designerClass="controlMix" Choices="[]"></dDropdownList>
+					</dSizer>
+				</dPage>
+			</dPageFrameNoTabs>
+		</dSizer>
+	</dSizer>
+</dOkCancelDialog>
